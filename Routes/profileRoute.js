@@ -1,77 +1,46 @@
 import express from "express";
 import profileModel from "../Models/profileSchema.js";
-import jwt from "jsonwebtoken";
+import authMiddleware from "../Middleware/authMiddleware.js";
 
 const router = express.Router();
 
-const authMiddleware = (req, res, next) => {
-  let token = req.headers["authorization"] || req.headers["Authorization"];
-  if (!token) return res.status(401).json({ error: "Access denied" });
-
-  // Support both raw token and 'Bearer <token>' formats
-  if (typeof token === "string" && token.startsWith("Bearer ")) {
-    token = token.split(" ")[1];
-  }
-
+router.get("/fetchUser", authMiddleware, async (req, res) => {
   try {
-    const verified = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = verified; // attach decoded user info
-    next();
+    const profile = await profileModel.findOne({ userId: req.userId }); // ✅ filter by logged-in user
+    if (!profile) return res.status(404).json({ message: "Profile not found" });
+    res.status(200).json({ message: "fetched user", data: profile });
   } catch (error) {
-    console.error("JWT verification failed:", error);
-    res.status(400).json({ error: "Invalid token" });
-  }
-};
-
-
-router.post("/addUser", authMiddleware, async (req, res) => {
-  const { name, age, height, weight, gender, activity } = req.body;
-
-  try {
-    const newPerson = new profileModel({
-      userId: req.user.id, // from JWT
-      name,
-      age,
-      height,
-      weight,
-      gender,
-      activity,
-    });
-
-    await newPerson.save();
-
-    res.status(200).json({
-      message: "User added successfully",
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Error adding user",
-    });
+    console.log("error fetching", error);
+    res.status(500).json({ message: "error fetching" });
   }
 });
 
-
-router.get("/fetchUser", authMiddleware, async (req, res) => {
+router.post("/addUser", authMiddleware, async (req, res) => {
+  const { name, age, height, weight, gender, activity } = req.body;
   try {
-    console.log("Decoded JWT:", req.user);
-
-    const existingPerson = await profileModel.findOne({
-      userId: req.user.id,
+    const newPerson = new profileModel({
+      userId: req.userId, // ✅ comes from token, not body
+      name, age, height, weight, gender, activity
     });
-
-    console.log("Profile Found:", existingPerson);
-
-    if (!existingPerson) {
-      return res.status(404).json({
-        message: "Profile not found",
-      });
-    }
-
-    res.status(200).json(existingPerson);
+    await newPerson.save();
+    res.status(201).json({ message: "User added successfully" });
   } catch (error) {
-    console.error("Error fetching profile:", error);
-    res.status(500).json({ message: "Server error" });
+    console.log("error adding person", error);
+    res.status(500).json({ message: "Error adding user" });
+  }
+});
+
+router.put("/updateUser", authMiddleware, async (req, res) => {
+  const { age, height, weight, gender, activity } = req.body;
+  try {
+    const updated = await profileModel.findOneAndUpdate(
+      { userId: req.userId },
+      { age, height, weight, gender, activity },
+      { new: true }
+    );
+    res.status(200).json({ message: "Profile updated", data: updated });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating profile" });
   }
 });
 

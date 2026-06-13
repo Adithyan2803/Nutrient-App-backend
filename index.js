@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import signupRoute from "./Routes/signupRoute.js"
 import loginRoute from "./Routes/loginRoute.js"
 import profileRoute from "./Routes/profileRoute.js"
+import mealRoute from "./Routes/mealRoute.js"
 dotenv.config();
 
 const app = express();
@@ -26,6 +27,7 @@ app.use("/api/createAuth",signupRoute);
 app.use("/api/auth",loginRoute);
 app.use("/api/createUser",profileRoute);
 app.use("/api/getUser",profileRoute)
+app.use("/api/meals",mealRoute);
 
 app.listen(5000, () => {
   console.log("Server started");
